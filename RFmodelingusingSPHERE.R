@@ -1,7 +1,6 @@
 # INPUT DATA
 
 library(spheredata)
-library(fastDummies)
 
 data("demographic")
 data("FCI")
