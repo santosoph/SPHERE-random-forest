@@ -1,53 +1,46 @@
 # INPUT DATA
 
-library(spheredata)
+library(readxl)
+dataSPHERE <- read_xlsx("SPHERE dataset.xlsx")
 
-data("demographic")
-data("FCI")
-data("FMCE")
-data("RRMCS")
-data("FMCI")
-data("MWCS")
-data("TCE")
-data("STPFASL")
-data("SAAR")
-data("CLASS")
+demographic <- dataSPHERE[,2:21]
+demographic$FINTEST2 <- as.numeric(demographic$FINTEST2)
 
-data("FCIkey")
-data("FMCEkey")
-data("RRMCSkey")
-data("FMCIkey")
-data("MWCSkey")
-data("TCEkey")
-data("STPFASLkey")
+FCI <- dataSPHERE[,22:51]
+FMCE <- dataSPHERE[,52:98]
+RRMCS <- dataSPHERE[,100:129]
+FMCI <- dataSPHERE[,162:191]
+MWCS <- dataSPHERE[,192:213]
+TCE <- dataSPHERE[,214:239]
+STPFASL <- dataSPHERE[,240:272]
+SAAR <- dataSPHERE[,273:288]
+CLASS <- dataSPHERE[,289:331]
 
-data("teachersjudgment")
-data("literacy")
-data("physicsidentity")
+FCIkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "FCI")
+FMCEkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "FMCE")
+RRMCSkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "RRMCS")
+FMCIkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "FMCI")
+MWCSkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "MWCS")
+TCEkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "TCE")
+STPFASLkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "STPFASL")
 
 # SCORING
 
-FCI_scored <- spheredata::binary(FCI,FCIkey)
-FMCE_scored <- spheredata::binary(FMCE,FMCEkey)
-RRMCS_scored <- spheredata::binary(RRMCS,RRMCSkey)
-FMCI_scored <- spheredata::binary(FMCI,FMCIkey)
-MWCS_scored <- spheredata::binary(MWCS,MWCSkey)
-TCE_scored <- spheredata::binary(TCE,TCEkey)
-STPFASL_scored <- spheredata::binary(STPFASL,STPFASLkey)
-demographic <- dummy_cols(demographic,
-           c("SCH", "COH","GDR","AGE","FATHOCC","MOTHOCC","FATHEDU","MOTHEDU","FATHINC","MOTHINC","SIBL","DOM"),
-           remove_selected_columns = TRUE)
-literacy <- dummy_cols(literacy,c("LIT1", "LIT2"),
-                              remove_selected_columns = TRUE)
-physicsidentity <- dummy_cols(physicsidentity,c("PHYIDE1", "PHYIDE2"),
-                          remove_selected_columns = TRUE)
+library(CTT)
+FCI_scored <- score(FCI,FCIkey, output.scored=TRUE)
+FMCE_scored <- score(FMCE,FMCEkey, output.scored=TRUE)
+RRMCS_scored <- score(RRMCS,RRMCSkey, output.scored=TRUE)
+FMCI_scored <- score(FMCI,FMCIkey, output.scored=TRUE)
+MWCS_scored <- score(MWCS,MWCSkey, output.scored=TRUE)
+TCE_scored <- score(TCE,TCEkey, output.scored=TRUE)
+STPFASL_scored <- score(STPFASL,STPFASLkey, output.scored=TRUE)
 
 # MACHINE LEARNING IMPLEMENTATION USING RANDOM FOREST
 
 ## Prepare the SPHERE data
 
-df <- cbind(demographic[,-1],literacy,physicsidentity,teachersjudgment,apply(FCI_scored,1,sum),apply(FMCE_scored,1,sum),apply(RRMCS_scored,1,sum),
-            apply(FMCI_scored,1,sum),apply(MWCS_scored,1,sum),apply(TCE_scored,1,sum),apply(STPFASL_scored,1,sum),
+df <- cbind(demographic[,-1],FCI_scored$score,FMCE_scored$score,RRMCS_scored$score,
+            FMCI_scored$score,MWCS_scored$score,TCE_scored$score,STPFASL_scored$score,
             apply(SAAR,1,sum),apply(CLASS,1,sum))
 
 colnames(df)[20:28] <- c("FCI","FMCE","RRMCS","FMCI","MWCS","TCE","STPFASL","SAAR","CLASS")
