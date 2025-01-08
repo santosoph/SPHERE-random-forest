@@ -1,4 +1,4 @@
-# INPUT DATA
+# I. INPUT DATA
 
 library(readxl)
 dataSPHERE <- read_xlsx("SPHERE dataset.xlsx")
@@ -24,7 +24,7 @@ MWCSkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "MWCS")
 TCEkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "TCE")
 STPFASLkey <- read_xlsx("SPHERE answer keys.xlsx", sheet = "STPFASL")
 
-# SCORING
+# II. SCORING
 
 library(CTT)
 FCI_scored <- score(FCI,FCIkey, output.scored=TRUE)
@@ -35,9 +35,9 @@ MWCS_scored <- score(MWCS,MWCSkey, output.scored=TRUE)
 TCE_scored <- score(TCE,TCEkey, output.scored=TRUE)
 STPFASL_scored <- score(STPFASL,STPFASLkey, output.scored=TRUE)
 
-# MACHINE LEARNING IMPLEMENTATION USING RANDOM FOREST
+# III. MACHINE LEARNING IMPLEMENTATION USING RANDOM FOREST
 
-## Prepare the SPHERE data
+## a. Prepare the SPHERE data
 
 df <- cbind(demographic[,-1],FCI_scored$score,FMCE_scored$score,RRMCS_scored$score,
             FMCI_scored$score,MWCS_scored$score,TCE_scored$score,STPFASL_scored$score,
@@ -45,12 +45,12 @@ df <- cbind(demographic[,-1],FCI_scored$score,FMCE_scored$score,RRMCS_scored$sco
 
 colnames(df)[20:28] <- c("FCI","FMCE","RRMCS","FMCI","MWCS","TCE","STPFASL","SAAR","CLASS")
 
-## Labeling students' performance in the end of the second semester
+## b. Labeling students' performance in the end of the second semester
 
-cutscore <- 70
+cutscore <- 70 # this value was determined by the aggrement of physics teachers participated in this study. Actually, it should be set to increase the prediction performance.
 df$Target <- ifelse(df$FINTEST2>cutscore,1,0)
 
-## Define data types
+## c. Define data types
 df$SCH <- as.factor(df$SCH)
 df$COH <- as.factor(df$COH)
 df$GDR <- as.factor(df$GDR)
@@ -69,7 +69,7 @@ df$PHYIDE1 <- as.factor(df$PHYIDE1)
 df$PHYIDE2 <- as.factor(df$PHYIDE2)
 df$Target <- as.factor(df$Target)
 
-## Data splitting
+## d. Data splitting
 
 library(randomForest)
 library(caret)
@@ -84,90 +84,91 @@ split <- sample.split(df$Target, SplitRatio = Ratio)
 df.Train <- subset(df, split == 1)
 df.Test <- subset(df, split == 0)
 
-## MODEL RF 1 (ALL)
+## e. MODEL RF 1 (ALL)
 
-### Training
+### 1. Training
 
 rf_1 <- randomForest(Target ~ SCH + COH + GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM
                      + LIT1 + LIT2 + PHYIDE1 + PHYIDE2 + FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
                      data = df.Train, ntree = 500, importance = T)
 
-### Testing
+### 2. Testing
 
 Pred.rf_1 <- predict(rf_1, df.Test)
 confusionMatrix(Pred.rf_1, df.Test$Target)
 
-### ROC Analysis
+### 3. ROC Analysis
 
 Pred.new.rf_1<-predict(rf_1, newdata = df.Test, type = 'prob')
 roc.mod.1<-roc(df.Test$Target, Pred.new.rf_1[,2], ci = T)
 plot.roc(roc.mod.1,print.thres = F, print.auc = T, legacy.axes = T)
 
-## MODEL RF 2 (RBAs)
+## f. MODEL RF 2 (RBAs)
 
-### Training
+### 1. Training
 
 rf_2 <- randomForest(Target ~ FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
                      data = df.Train, ntree = 500, importance = T)
 rf_2
 
-### Testing
+### 2. Testing
 
 Pred.rf_2 <- predict(rf_2, df.Test)
 confusionMatrix(Pred.rf_2, df.Test$Target)
 
-### ROC Analysis
+### 3. ROC Analysis
 
 Pred.new.rf_2<-predict(rf_2, newdata = df.Test, type = 'prob')
 roc.mod.2<-roc(df.Test$Target, Pred.new.rf_2[,2], ci = T)
 plot.roc(roc.mod.2,print.thres = F, print.auc = T, legacy.axes = T)
 
-## MODEL RF 3 (DEMOGRAPHIC)
+## g. MODEL RF 3 (DEMOGRAPHIC)
 
-### Training
+### 1. Training
 
 rf_3 <- randomForest(Target ~ SCH + COH + GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM +
                        LIT1 + LIT2 + PHYIDE1 + PHYIDE2, 
                      data = df.Train, ntree = 500, importance = T)
 rf_3
 
-### Testing
+### 2. Testing
 
 Pred.rf_3 <- predict(rf_3, df.Test)
 confusionMatrix(Pred.rf_3, df.Test$Target)
 
-### ROC Analysis
+### 3. ROC Analysis
 
 Pred.new.rf_3<-predict(rf_3, newdata = df.Test, type = 'prob')
 roc.mod.3<-roc(df.Test$Target, Pred.new.rf_3[,2], ci = T)
 plot.roc(roc.mod.3,print.thres = F, print.auc = T, legacy.axes = T)
 
-## MODEL RF 4 (COMBINED)
-### Training
+## h. MODEL RF 4 (COMBINED)
+### 1. Training
 
 rf_4 <- randomForest(Target ~ FMCI + MWCS + FMCE + STPFASL + CLASS + SCH + COH + FATHINC + FATHOCC + MOTHINC, 
                      data = df.Train, ntree = 500, importance = T)
 rf_4
 
-### Testing
+### 2. Testing
 
 Pred.rf_4 <- predict(rf_4, df.Test)
 confusionMatrix(Pred.rf_4, df.Test$Target)
 
-### ROC Analysis
+### 3. ROC Analysis
 
 Pred.new.rf_4<-predict(rf_4, newdata = df.Test, type = 'prob')
 roc.mod.4<-roc(df.Test$Target, Pred.new.rf_4[,2], ci = T)
 plot.roc(roc.mod.4,print.thres = F, print.auc = T, legacy.axes = T)
 
-### Variable Importance Analysis
+### 4. Variable Importance Analysis
 
 varImpPlot(rf_4, main = "Variable Importance Model RF 4")
 
-## Teacher prediction performance
-
+## i. Teacher prediction performance
+### 1. Prediction performance of physics teachers
 confusionMatrix(as.factor(df$TEACHPRED), df$Target)
 
+### 2. ROC analysis
 roc.mod.5<-roc(df$Target, df$TEACHPRED, ci = T)
 plot.roc(roc.mod.5,print.thres = F, print.auc = T, legacy.axes = T)
 
