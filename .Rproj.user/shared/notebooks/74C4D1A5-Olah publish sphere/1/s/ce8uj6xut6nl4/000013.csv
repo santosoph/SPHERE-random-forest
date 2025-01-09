@@ -1,0 +1,2 @@
+"0","par(mfrow = c(1, 2))"
+"0","varImpPlot(rf_2, main = ""RF 2"", type = 2)"
