@@ -69,8 +69,8 @@ df$PHYIDE1 <- as.factor(df$PHYIDE1)
 df$PHYIDE2 <- as.factor(df$PHYIDE2)
 df$Target <- as.factor(df$Target)
 
-## d. Data splitting
-
+## d. MODEL RF 1 (ALL)
+### 1. Training & Testing
 library(randomForest)
 library(caret)
 library(caTools)
@@ -78,99 +78,134 @@ library(pROC)
 
 set.seed(86)
 
-Ratio <-  0.75
-split <- sample.split(df$Target, SplitRatio = Ratio)
+folds <- createFolds(df$Target, k = 10)
+metric_list <- sapply(folds, function(fold) {
+  df.Train <- df[-fold, ]
+  df.Test <- df[fold, ]
+  
+  rf_1 <- randomForest(Target ~ GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM
+                       + LIT1 + LIT2 + PHYIDE1 + PHYIDE2 + FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
+                       data = df.Train, ntree = 500, importance = T)
+  Pred.rf_1 <- predict(rf_1, df.Test)
+  cf_table <- confusionMatrix(Pred.rf_1, df.Test$Target)
+  
+  Pred.new.rf_1<-predict(rf_1, newdata = df.Test, type = 'prob')
+  roc.mod.1<-roc(df.Test$Target, Pred.new.rf_1[,2], ci = T)
+  
+  metric <- data.frame("AUROCL" = roc.mod.1$ci[1],
+                       "AUROC" = roc.mod.1$auc,
+                       "AUROCU" = roc.mod.1$ci[3],
+                       "AccuracyL" = cf_table$overall['AccuracyLower'],
+                       "Accuracy" = cf_table$overall['Accuracy'],
+                       "AccuracyU" = cf_table$overall['AccuracyUpper'],
+                       "Sensitivity" = cf_table$byClass['Sensitivity'],
+                       "Specificity" = cf_table$byClass['Specificity'])
+  return(as.numeric(metric))
+})
 
-df.Train <- subset(df, split == 1)
-df.Test <- subset(df, split == 0)
+data.frame("Metrics" = c("AUROCLower", "AUROC", "AUROCUpper", "AccuracyLower", "Accuracy", "AccuracyUpper", "Sensitivity", "Specificity"), "Mean" = rowMeans (metric_list), metric_list)
 
-## e. MODEL RF 1 (ALL)
+## e. MODEL RF 2 (RBAs)
 
-### 1. Training
+### 1. Training & Testing
+folds <- createFolds(df$Target, k = 10)
+metric_list <- sapply(folds, function(fold) {
+  df.Train <- df[-fold, ]
+  df.Test <- df[fold, ]
+  
+  rf_2 <- randomForest(Target ~ FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
+                       data = df.Train, ntree = 500, importance = T)
+  Pred.rf_2 <- predict(rf_2, df.Test)
+  cf_table <- confusionMatrix(Pred.rf_2, df.Test$Target)
+  
+  Pred.new.rf_2<-predict(rf_2, newdata = df.Test, type = 'prob')
+  roc.mod.2<-roc(df.Test$Target, Pred.new.rf_2[,2], ci = T)
+  
+  metric <- data.frame("AUROCL" = roc.mod.2$ci[1],
+                       "AUROC" = roc.mod.2$auc,
+                       "AUROCU" = roc.mod.2$ci[3],
+                       "AccuracyL" = cf_table$overall['AccuracyLower'],
+                       "Accuracy" = cf_table$overall['Accuracy'],
+                       "AccuracyU" = cf_table$overall['AccuracyUpper'],
+                       "Sensitivity" = cf_table$byClass['Sensitivity'],
+                       "Specificity" = cf_table$byClass['Specificity'])
+  return(as.numeric(metric))
+})
 
-rf_1 <- randomForest(Target ~ SCH + COH + GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM
-                     + LIT1 + LIT2 + PHYIDE1 + PHYIDE2 + FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
-                     data = df.Train, ntree = 500, importance = T)
+data.frame("Metrics" = c("AUROCLower", "AUROC", "AUROCUpper", "AccuracyLower", "Accuracy", "AccuracyUpper", "Sensitivity", "Specificity"), "Mean" = rowMeans (metric_list), metric_list)
 
-### 2. Testing
+## f. MODEL RF 3 (DEMOGRAPHIC)
 
-Pred.rf_1 <- predict(rf_1, df.Test)
-confusionMatrix(Pred.rf_1, df.Test$Target)
+### 1. Training & Testing
+folds <- createFolds(df$Target, k = 10)
+metric_list <- sapply(folds, function(fold) {
+  df.Train <- df[-fold, ]
+  df.Test <- df[fold, ]
+  
+  rf_3 <- randomForest(Target ~ GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM +
+                         LIT1 + LIT2 + PHYIDE1 + PHYIDE2, data = df.Train, ntree = 500, importance = T)
+  Pred.rf_3 <- predict(rf_3, df.Test)
+  cf_table <- confusionMatrix(Pred.rf_3, df.Test$Target)
+  
+  Pred.new.rf_3<-predict(rf_3, newdata = df.Test, type = 'prob')
+  roc.mod.3<-roc(df.Test$Target, Pred.new.rf_3[,2], ci = T)
+  
+  metric <- data.frame("AUROCL" = roc.mod.3$ci[1],
+                       "AUROC" = roc.mod.3$auc,
+                       "AUROCU" = roc.mod.3$ci[3],
+                       "AccuracyL" = cf_table$overall['AccuracyLower'],
+                       "Accuracy" = cf_table$overall['Accuracy'],
+                       "AccuracyU" = cf_table$overall['AccuracyUpper'],
+                       "Sensitivity" = cf_table$byClass['Sensitivity'],
+                       "Specificity" = cf_table$byClass['Specificity'])
+  return(as.numeric(metric))
+})
 
-### 3. ROC Analysis
+data.frame("Metrics" = c("AUROCLower", "AUROC", "AUROCUpper", "AccuracyLower", "Accuracy", "AccuracyUpper", "Sensitivity", "Specificity"), "Mean" = rowMeans (metric_list), metric_list)
 
-Pred.new.rf_1<-predict(rf_1, newdata = df.Test, type = 'prob')
-roc.mod.1<-roc(df.Test$Target, Pred.new.rf_1[,2], ci = T)
-plot.roc(roc.mod.1,print.thres = F, print.auc = T, legacy.axes = T)
+## g. MODEL RF 4 (COMBINED)
+### 1. Training & Testing
+folds <- createFolds(df$Target, k = 10)
+metric_list <- sapply(folds, function(fold) {
+  df.Train <- df[-fold, ]
+  df.Test <- df[fold, ]
+  
+  rf_4 <- randomForest(Target ~ FMCI + MWCS + FMCE + STPFASL + CLASS + 
+                         FATHINC + FATHOCC + MOTHINC + MOTHOCC + FATHEDU, 
+                       data = df.Train, ntree = 500, importance = T)
+  Pred.rf_4 <- predict(rf_4, df.Test)
+  cf_table <- confusionMatrix(Pred.rf_4, df.Test$Target)
+  
+  Pred.new.rf_4<-predict(rf_4, newdata = df.Test, type = 'prob')
+  roc.mod.4<-roc(df.Test$Target, Pred.new.rf_4[,2], ci = T)
+  
+  metric <- data.frame("AUROCL" = roc.mod.4$ci[1],
+                       "AUROC" = roc.mod.4$auc,
+                       "AUROCU" = roc.mod.4$ci[3],
+                       "AccuracyL" = cf_table$overall['AccuracyLower'],
+                       "Accuracy" = cf_table$overall['Accuracy'],
+                       "AccuracyU" = cf_table$overall['AccuracyUpper'],
+                       "Sensitivity" = cf_table$byClass['Sensitivity'],
+                       "Specificity" = cf_table$byClass['Specificity'])
+  return(as.numeric(metric))
+})
 
-## f. MODEL RF 2 (RBAs)
+data.frame("Metrics" = c("AUROCLower", "AUROC", "AUROCUpper", "AccuracyLower", "Accuracy", "AccuracyUpper", "Sensitivity", "Specificity"), "Mean" = rowMeans (metric_list), metric_list)
 
-### 1. Training
-
-rf_2 <- randomForest(Target ~ FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
-                     data = df.Train, ntree = 500, importance = T)
-rf_2
-
-### 2. Testing
-
-Pred.rf_2 <- predict(rf_2, df.Test)
-confusionMatrix(Pred.rf_2, df.Test$Target)
-
-### 3. ROC Analysis
-
-Pred.new.rf_2<-predict(rf_2, newdata = df.Test, type = 'prob')
-roc.mod.2<-roc(df.Test$Target, Pred.new.rf_2[,2], ci = T)
-plot.roc(roc.mod.2,print.thres = F, print.auc = T, legacy.axes = T)
-
-## g. MODEL RF 3 (DEMOGRAPHIC)
-
-### 1. Training
-
-rf_3 <- randomForest(Target ~ SCH + COH + GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM +
-                       LIT1 + LIT2 + PHYIDE1 + PHYIDE2, 
-                     data = df.Train, ntree = 500, importance = T)
-rf_3
-
-### 2. Testing
-
-Pred.rf_3 <- predict(rf_3, df.Test)
-confusionMatrix(Pred.rf_3, df.Test$Target)
-
-### 3. ROC Analysis
-
-Pred.new.rf_3<-predict(rf_3, newdata = df.Test, type = 'prob')
-roc.mod.3<-roc(df.Test$Target, Pred.new.rf_3[,2], ci = T)
-plot.roc(roc.mod.3,print.thres = F, print.auc = T, legacy.axes = T)
-
-## h. MODEL RF 4 (COMBINED)
-### 1. Training
-
-rf_4 <- randomForest(Target ~ FMCI + MWCS + FMCE + STPFASL + CLASS + SCH + COH + FATHINC + FATHOCC + MOTHINC, 
-                     data = df.Train, ntree = 500, importance = T)
-rf_4
-
-### 2. Testing
-
-Pred.rf_4 <- predict(rf_4, df.Test)
-confusionMatrix(Pred.rf_4, df.Test$Target)
-
-### 3. ROC Analysis
-
-Pred.new.rf_4<-predict(rf_4, newdata = df.Test, type = 'prob')
-roc.mod.4<-roc(df.Test$Target, Pred.new.rf_4[,2], ci = T)
-plot.roc(roc.mod.4,print.thres = F, print.auc = T, legacy.axes = T)
-
-### 4. Variable Importance Analysis
-
-varImpPlot(rf_4, main = "Variable Importance Model RF 4")
-
-## i. Teacher prediction performance
+## h. Teacher prediction performance
 ### 1. Prediction performance of physics teachers
 confusionMatrix(as.factor(df$TEACHPRED), df$Target)
 
 ### 2. ROC analysis
 roc.mod.5<-roc(df$Target, df$TEACHPRED, ci = T)
 plot.roc(roc.mod.5,print.thres = F, print.auc = T, legacy.axes = T)
+
+## i. Variable importance analysis of RF2 and RF3
+rf_2 <- randomForest(Target ~ FCI + FMCE + RRMCS + FMCI + MWCS + TCE + STPFASL + SAAR + CLASS, 
+                     data = df.Train, ntree = 500, importance = T)
+rf_3 <- randomForest(Target ~ SCH + COH + GDR + AGE + FATHOCC + MOTHOCC + FATHEDU + MOTHEDU + FATHINC + MOTHINC + SIBL + DOM +
+                       LIT1 + LIT2 + PHYIDE1 + PHYIDE2, 
+                     data = df.Train, ntree = 500, importance = T)
 
 par(mfrow = c(1, 2))
 varImpPlot(rf_2, main = "RF 2", type = 2)
